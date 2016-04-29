@@ -1,0 +1,9 @@
+Leaver                                                                     NEWS
+-------------------------------------------------------------------------------
+29 Apr 2016, Leaver 0.1.0
+
+- Core:
+  . A fast logger for PHP.
+
+-------------------------------------------------------------------------------
+    NOTE: Insert NEWS from last stable release here prior to actual release!

@@ -18,11 +18,12 @@
 #define LEAVER_VERSION          "0.1.0"
 #define LEAVER_VERSION_INT      100
 #define LEAVER_AUTHOR           "You Ming"
+#define LEAVER_HOMEPAGE         "http://leaver.funcuter.org"
 
 #define LEAVER_API          ZEND_API
 
-#ifdef LEAVER_DEBUG
-#define LEAVER_LOG(...)     do { printf("[L] "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#ifdef PHP_LEAVER_DEBUG
+#define LEAVER_LOG(...)     do { printf("[L] "); printf(__VA_ARGS__); printf("\n"); } while(0);
 #else
 #define LEAVER_LOG(...)
 #endif

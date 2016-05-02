@@ -36,6 +36,8 @@ PHP_MINIT_FUNCTION(leaver)
     LEAVER_CREATE(appender_null);
     LEAVER_CREATE(appender_file);
 
+    LEAVER_LOG("Leaver is registered to PHP.");
+
     return SUCCESS;
 }
 
@@ -58,14 +60,15 @@ PHP_MSHUTDOWN_FUNCTION(leaver)
 
 PHP_GSHUTDOWN_FUNCTION(leaver)
 {
-
 }
 
 PHP_MINFO_FUNCTION(leaver)
 {
     php_info_print_table_start();
-    php_info_print_table_header(2, "Leaver Support", "enabled");
-    php_info_print_table_row_ex(2, "Leaver Version", LEAVER_VERSION);
+    php_info_print_table_row(2, "Leaver Support", "enabled");
+    php_info_print_table_row(2, "Version", LEAVER_VERSION);
+    php_info_print_table_row(2, "Author", LEAVER_AUTHOR);
+    php_info_print_table_row(2, "Homepage", LEAVER_HOMEPAGE);
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -76,20 +79,20 @@ const zend_function_entry leaver_functions[] = {
 };
 
 zend_module_entry leaver_module_entry = {
-        STANDARD_MODULE_HEADER,
-        "leaver",
-        leaver_functions,
-        PHP_MINIT(leaver),
-        PHP_MSHUTDOWN(leaver),
-        PHP_RINIT(leaver),
-        PHP_RSHUTDOWN(leaver),
-        PHP_MINFO(leaver),
-        LEAVER_VERSION,
-        PHP_MODULE_GLOBALS(leaver),
-        PHP_GINIT(leaver),
-        PHP_GSHUTDOWN(leaver),
-        NULL,
-        STANDARD_MODULE_PROPERTIES_EX
+    STANDARD_MODULE_HEADER,
+    "leaver",
+    leaver_functions,
+    PHP_MINIT(leaver),
+    PHP_MSHUTDOWN(leaver),
+    PHP_RINIT(leaver),
+    PHP_RSHUTDOWN(leaver),
+    PHP_MINFO(leaver),
+    LEAVER_VERSION,
+    PHP_MODULE_GLOBALS(leaver),
+    PHP_GINIT(leaver),
+    PHP_GSHUTDOWN(leaver),
+    NULL,
+    STANDARD_MODULE_PROPERTIES_EX
 };
 
 #ifdef COMPILE_DL_LEAVER

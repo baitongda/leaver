@@ -9,7 +9,7 @@ class Logger
     const DEBUG     = 128;
     const INFO      = 64;
     const NOTICE    = 32;
-    const WARNING   = 16
+    const WARNING   = 16;
     const ERROR     = 8;
     const CRITICAL  = 4;
     const ALERT     = 2;

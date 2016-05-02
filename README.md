@@ -1,11 +1,14 @@
 # Leaver - A fast logger for PHP
 
->
-- **Author**
-  - You Ming (youming@funcuter.org)
-- **License**
-  - The MIT License (MIT)
-- **Document**
-  - [简介] (<README.zh.md>)
-  - [Read me] (<README.en.md>)
->
+### Requirement
+    - PHP 7+
+
+### License
+    - The MIT License (MIT)
+
+### Introduction
+    - You Ming (youming@funcuter.org)
+
+### Introduction
+    - [中文] (<README.zh.md>)
+    - [English] (<README.en.md>)

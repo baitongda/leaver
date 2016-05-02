@@ -4,7 +4,7 @@ namespace Leaver;
 
 use Throwable;
 
-class Appender
+abstract class Appender
 {
     protected $format;
 

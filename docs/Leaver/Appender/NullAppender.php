@@ -1,8 +1,8 @@
 <?php
 
-namespace Leaver/Appender;
+namespace Leaver\Appender;
 
-use Leaver/Appender;
+use Leaver\Appender;
 use Throwable;
 
 class NullAppender extends Appender

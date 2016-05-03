@@ -6,7 +6,7 @@
 ### License
 - The MIT License (MIT)
 
-### Introduction
+### Author
 - You Ming (youming@funcuter.org)
 
 ### Introduction

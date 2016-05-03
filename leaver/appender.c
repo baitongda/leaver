@@ -134,16 +134,25 @@ PHP_METHOD(leaver_appender, append)
     accept_levels = zval_get_long(z_accept_levels);
 
     if (level & accept_levels) {
-        zval z_params[3], z_retval;
-        ZVAL_UNDEF(&z_retval);
-        ZVAL_LONG(&z_params[0], level);
-        ZVAL_STR(&z_params[1], message);
-        ZVAL_ZVAL(&z_params[2], z_exception, 1, 0);
+        zval append_params[3], retval;
+        ZVAL_UNDEF(&retval);
+        ZVAL_LONG(&append_params[0], level);
+        ZVAL_STR_COPY(&append_params[1], message);
+        if (Z_TYPE_P(z_exception) == IS_OBJECT) {
+            ZVAL_COPY(&append_params[2], z_exception);
+        } else {
+            ZVAL_NULL(&append_params[2]);
+        }
 
-        leaver_call_method_with_params(this, "onappend", 3, z_params, &z_retval, NULL);
 
-        zval_delref_p(&z_params[1]);
-        zval_delref_p(&z_params[2]);
+        leaver_call_method_with_params(this, "onappend", 3, append_params, &retval, NULL);
+
+        zval_ptr_dtor(&append_params[1]);
+        zval_ptr_dtor(&append_params[2]);
+
+        if (Z_TYPE(retval) != IS_UNDEF) {
+            zval_ptr_dtor(&retval);
+        }
 
         RETURN_TRUE;
     }

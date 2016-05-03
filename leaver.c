@@ -43,18 +43,20 @@ PHP_MINIT_FUNCTION(leaver)
 
 PHP_RINIT_FUNCTION(leaver)
 {
+    LEAVER_LOG("Begin handling request.");
+
     return SUCCESS;
 }
 
 PHP_RSHUTDOWN_FUNCTION(leaver)
 {
+    LEAVER_LOG("Stop handling request.");
 
     return SUCCESS;
 }
 
 PHP_MSHUTDOWN_FUNCTION(leaver)
 {
-
     return SUCCESS;
 }
 

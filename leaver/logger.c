@@ -287,8 +287,11 @@ void leaver_logger_log(zend_array *appenders, zend_long level, zend_string *mess
     if (context) {
         message = leaver_logger_format_message(message, context);
         z_exception = zend_hash_str_find(context, ZEND_STRL("exception"));
+    } else {
+        zend_string_addref(message);
     }
 
+    ZVAL_UNDEF(&retval);
     ZVAL_LONG(&is_enable_params[0], level);
     ZVAL_LONG(&append_params[0], level);
     ZVAL_STR(&append_params[1], message);
@@ -304,4 +307,8 @@ void leaver_logger_log(zend_array *appenders, zend_long level, zend_string *mess
 
     zval_ptr_dtor(&append_params[1]);
     zval_ptr_dtor(&append_params[2]);
+
+    if (Z_TYPE(retval) != IS_UNDEF) {
+        zval_ptr_dtor(&retval);
+    }
 }

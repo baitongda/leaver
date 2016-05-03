@@ -1,12 +1,14 @@
 PHP_ARG_ENABLE(leaver, whether to enable leaver support,
     [  --enable-leaver        Enable leaver support])
 
-AC_ARG_ENABLE(leaver-debug, whether to enable leaver debug mode,
-    [  --enable-leaver-debug  Enable leaver debug mode], no, no)
+AC_ARG_ENABLE(leaver-debug,
+    [  --enable-leaver-debug  Enable leaver debug mode],
+    [PHP_LEAVER_DEBUG=$enableval],
+    [PHP_LEAVER_DEBUG="no"])
 
 if test "$PHP_LEAVER" != "no"; then
 
-    if test "$PHP_LEAVER_DEBUG" != "no"; then
+    if test "$PHP_LEAVER_DEBUG" = "yes"; then
         AC_DEFINE(PHP_LEAVER_DEBUG, 1, [define to 1 if you want to run with debug mode])
     else
         AC_DEFINE(PHP_LEAVER_DEBUG, 0, [define to 1 if you want to run with debug mode])

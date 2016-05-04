@@ -245,74 +245,74 @@ size_t leaver_appender_common_format_log(char **output, zend_string *format, zen
 
             switch(*p) {
                 case '%':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 1);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
                     *b = '%';
                     add_len = 1;
                     break;
 
                 case 'n':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 1);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
                     *b = '\n';
                     add_len = 1;
                     break;
 
                 case 'Y':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 4);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 5);
                     add_len = snprintf(b, 5, "%4d", timeinfo->tm_year + 1900);
                     break;
 
                 case 'M':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
+                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon + 1);
                     break;
 
                 case 'D':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
                     add_len = snprintf(b, 3, "%02d", timeinfo->tm_mday);
                     break;
 
                 case 'H':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
                     add_len = snprintf(b, 3, "%02d", timeinfo->tm_hour);
                     break;
 
                 case 'I':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
                     add_len = snprintf(b, 3, "%02d", timeinfo->tm_min);
                     break;
 
                 case 'S':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
                     add_len = snprintf(b, 3, "%02d", timeinfo->tm_sec);
                     break;
 
                 case 's':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 4);
                     add_len = snprintf(b, 4, "%03d", timev.tv_usec / 1000);
                     break;
 
                 case 'u':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 6);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 7);
                     add_len = snprintf(b, 7, "%06d", timev.tv_usec);
                     break;
 
                 case 't':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 10);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 11);
                     add_len = snprintf(b, 11, "%d", timev.tv_sec);
                     break;
 
                 case 'p':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 10);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 11);
                     add_len = snprintf(b, 11, "%d", getpid());
                     break;
 
                 case 'l':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 9); // Length of EMERGENCY.
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 10); // Length of EMERGENCY.
                     add_len = snprintf(b, 10, "%s", leaver_appender_get_level_string(level));
                     break;
 
                 case 'm':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, message->len);
+                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, message->len + 1);
                     add_len = snprintf(b, message->len + 1, "%s", message->val);
                     break;
 

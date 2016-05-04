@@ -189,7 +189,7 @@ char *leaver_appender_file_format_path(char *log_file, size_t log_file_len)
                     break;
 
                 case 'M':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon);
+                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon + 1);
                     break;
 
                 case 'D':

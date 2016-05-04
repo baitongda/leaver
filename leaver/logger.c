@@ -179,7 +179,7 @@ zend_array *leaver_logger_get_appenders(zval *logger)
         appenders = Z_ARR_P(z_appenders);
     } else {
         ALLOC_HASHTABLE(appenders);
-        zend_hash_init(appenders, 4, NULL, NULL, 0);
+        zend_hash_init(appenders, 4, NULL, ZVAL_PTR_DTOR, 0);
 
         ZVAL_ARR(z_appenders, appenders);
 

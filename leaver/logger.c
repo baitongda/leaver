@@ -41,6 +41,8 @@ PHP_METHOD(leaver_logger, addAppender)
 
     leaver_call_method_without_params(z_appender, "getname", &z_appender_name, NULL);
 
+    Z_ADDREF_P(z_appender);
+
     appenders = leaver_logger_get_appenders(this);
 
     if (Z_TYPE(z_appender_name) == IS_STRING) {
@@ -291,7 +293,6 @@ void leaver_logger_log(zend_array *appenders, zend_long level, zend_string *mess
         zend_string_addref(message);
     }
 
-    ZVAL_UNDEF(&retval);
     ZVAL_LONG(&is_enable_params[0], level);
     ZVAL_LONG(&append_params[0], level);
     ZVAL_STR(&append_params[1], message);

@@ -135,7 +135,6 @@ PHP_METHOD(leaver_appender, append)
 
     if (level & accept_levels) {
         zval append_params[3], retval;
-        ZVAL_UNDEF(&retval);
         ZVAL_LONG(&append_params[0], level);
         ZVAL_STR_COPY(&append_params[1], message);
         if (Z_TYPE_P(z_exception) == IS_OBJECT) {
@@ -143,7 +142,6 @@ PHP_METHOD(leaver_appender, append)
         } else {
             ZVAL_NULL(&append_params[2]);
         }
-
 
         leaver_call_method_with_params(this, "onappend", 3, append_params, &retval, NULL);
 

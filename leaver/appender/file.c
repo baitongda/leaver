@@ -18,7 +18,7 @@
 
 extern void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len);
 extern char *leaver_appender_file_format_path(char *log_file, size_t log_file_len);
-extern int leaver_appender_file_check_dir(char *log_dir);
+extern void leaver_appender_file_make_log_dir(char *log_file);
 
 zend_class_entry *leaver_appender_file_ce;
 
@@ -125,18 +125,11 @@ LEAVER_CREATE_FUNCTION(appender_file)
 
 void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len)
 {
-    char *log_dir;
     php_stream *stream;
 
-    log_dir = estrdup(log_file);
-    zend_dirname(log_dir, strlen(log_dir));
-
-    if (FAILURE == leaver_appender_file_check_dir(log_dir)) {
-        efree(log_dir);
-        return;
+    if (access(log_file, F_OK)) {
+        leaver_appender_file_make_log_dir(log_file);
     }
-
-    efree(log_dir);
 
     stream = php_stream_open_wrapper(log_file, "a", IGNORE_URL, NULL);
     if (!stream) {
@@ -146,7 +139,6 @@ void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len)
     php_stream_write(stream, log, log_len);
     php_stream_write(stream, "\n", 1);
     php_stream_close(stream);
-    php_stream_free(stream, PHP_STREAM_FREE_RELEASE_STREAM);
 }
 
 // Usable tokens:
@@ -225,18 +217,14 @@ char *leaver_appender_file_format_path(char *log_file, size_t log_file_len)
     return buf;
 }
 
-int leaver_appender_file_check_dir(char *log_dir)
+void leaver_appender_file_make_log_dir(char *log_file)
 {
-    if (access(log_dir, 0)) {
-        mode_t mask = umask(0);
+    char *log_dir;
 
-        if (!php_stream_mkdir(log_dir, 0777, PHP_STREAM_MKDIR_RECURSIVE, NULL)) {
-            umask(mask);
-            return FAILURE;
-        }
+    log_dir = estrdup(log_file);
+    zend_dirname(log_dir, strlen(log_dir));
 
-        umask(mask);
-    }
+    php_stream_mkdir(log_dir, 0777, PHP_STREAM_MKDIR_RECURSIVE, NULL);
 
-    return SUCCESS;
+    efree(log_dir);
 }

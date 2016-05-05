@@ -22,12 +22,6 @@
 
 #define LEAVER_API          ZEND_API
 
-#ifdef PHP_LEAVER_DEBUG
-#define LEAVER_LOG(...)     do { printf("[L] "); printf(__VA_ARGS__); printf("\n"); } while(0);
-#else
-#define LEAVER_LOG(...)
-#endif
-
 #define LEAVER_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(leaver, v)
 
 #define LEAVER_CREATE_FUNCTION(module)      PHP_MINIT_FUNCTION(leaver_##module)

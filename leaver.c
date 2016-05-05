@@ -36,22 +36,16 @@ PHP_MINIT_FUNCTION(leaver)
     LEAVER_CREATE(appender_null);
     LEAVER_CREATE(appender_file);
 
-    LEAVER_LOG("Leaver is registered to PHP.");
-
     return SUCCESS;
 }
 
 PHP_RINIT_FUNCTION(leaver)
 {
-    LEAVER_LOG("Begin handling request.");
-
     return SUCCESS;
 }
 
 PHP_RSHUTDOWN_FUNCTION(leaver)
 {
-    LEAVER_LOG("Stop handling request.");
-
     return SUCCESS;
 }
 

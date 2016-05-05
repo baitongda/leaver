@@ -11,6 +11,7 @@
 #endif
 
 #include <php.h>
+#include <ext/standard/file.h>
 
 #include "../../php_leaver.h"
 #include "../appender.h"
@@ -18,7 +19,7 @@
 
 extern void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len);
 extern char *leaver_appender_file_format_path(char *log_file, size_t log_file_len);
-extern void leaver_appender_file_make_log_dir(char *log_file);
+extern void leaver_appender_file_make_log_dir(char *log_file, php_stream_context *context);
 
 zend_class_entry *leaver_appender_file_ce;
 
@@ -125,20 +126,23 @@ LEAVER_CREATE_FUNCTION(appender_file)
 
 void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len)
 {
+    php_stream_context *context;
     php_stream *stream;
 
+    context = php_stream_context_from_zval(NULL, 0);
+
     if (access(log_file, F_OK)) {
-        leaver_appender_file_make_log_dir(log_file);
+        leaver_appender_file_make_log_dir(log_file, context);
     }
 
-    stream = php_stream_open_wrapper(log_file, "a", IGNORE_URL, NULL);
+    stream = php_stream_open_wrapper(log_file, "a", IGNORE_URL, context);
     if (!stream) {
         return;
     }
 
     php_stream_write(stream, log, log_len);
     php_stream_write(stream, "\n", 1);
-    php_stream_close(stream);
+    php_stream_free(stream, PHP_STREAM_FREE_CLOSE | PHP_STREAM_FREE_RELEASE_STREAM);
 }
 
 // Usable tokens:
@@ -217,14 +221,14 @@ char *leaver_appender_file_format_path(char *log_file, size_t log_file_len)
     return buf;
 }
 
-void leaver_appender_file_make_log_dir(char *log_file)
+void leaver_appender_file_make_log_dir(char *log_file, php_stream_context *context)
 {
     char *log_dir;
 
     log_dir = estrdup(log_file);
     zend_dirname(log_dir, strlen(log_dir));
 
-    php_stream_mkdir(log_dir, 0777, PHP_STREAM_MKDIR_RECURSIVE, NULL);
+    php_stream_mkdir(log_dir, 0777, PHP_STREAM_MKDIR_RECURSIVE, context);
 
     efree(log_dir);
 }

@@ -17,9 +17,42 @@
 #include "../appender.h"
 #include "file.h"
 
-extern void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len);
-extern char *leaver_appender_file_format_path(char *log_file, size_t log_file_len);
-extern void leaver_appender_file_make_log_dir(char *log_file, php_stream_context *context);
+void leaver_appender_file_make_log_dir(char *log_file)
+{
+    char *log_dir;
+
+    log_dir = estrdup(log_file);
+    zend_dirname(log_dir, strlen(log_dir));
+
+    if (access(log_dir, F_OK)) {
+        php_stream_context *context;
+
+        context = php_stream_context_from_zval(NULL, 0);
+        php_stream_mkdir(log_dir, 0777, PHP_STREAM_MKDIR_RECURSIVE, context);
+    }
+
+    efree(log_dir);
+}
+
+int leaver_appender_file_write_log(char *log_file, char *log, size_t log_len)
+{
+    php_stream *stream;
+
+    if (access(log_file, F_OK)) {
+        leaver_appender_file_make_log_dir(log_file);
+    }
+
+    stream = php_stream_open_wrapper(log_file, "a", IGNORE_URL, NULL);
+    if (!stream) {
+        return FAILURE;
+    }
+
+    php_stream_write(stream, log, log_len);
+    php_stream_write(stream, "\n", 1);
+    php_stream_free(stream, PHP_STREAM_FREE_CLOSE | PHP_STREAM_FREE_RELEASE_STREAM);
+
+    return SUCCESS;
+}
 
 zend_class_entry *leaver_appender_file_ce;
 
@@ -40,23 +73,6 @@ PHP_METHOD(leaver_appender_file, setFilePath)
     zend_update_property_str(leaver_appender_file_ce, this, ZEND_STRL("filePath"), filePath);
 }
 
-// public \Leaver\Appender\FileAppender::setUsePattern(bool $usePattern = true) : void
-ZEND_BEGIN_ARG_INFO_EX(leaver_appender_file_setUsePattern_arginfo, 0, 0, 0)
-    ZEND_ARG_TYPE_INFO(0, usePattern, _IS_BOOL, 1)
-ZEND_END_ARG_INFO()
-
-PHP_METHOD(leaver_appender_file, setUsePattern)
-{
-    zval *this = getThis();
-    zend_bool use_pattern;
-
-    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &use_pattern)) {
-        return;
-    }
-
-    zend_update_property_bool(leaver_appender_file_ce, this, ZEND_STRL("usePattern"), use_pattern);
-}
-
 // public \Leaver\Appender\FileAppender::onAppend(int level, string $message, Throwable $throwable = NULL) : void
 ZEND_BEGIN_ARG_INFO_EX(leaver_appender_file_onAppend_arginfo, 0, 0, 2)
     ZEND_ARG_TYPE_INFO(0, level, IS_LONG, 0)
@@ -70,10 +86,10 @@ PHP_METHOD(leaver_appender_file, onAppend)
     zend_long level;
     zend_string *message;
     zval *z_exception = NULL;
-    zval *z_format, *z_file_path, *z_use_pattern;
+    zval *z_format, *z_file_path, *z_log_exception;
     zend_string *format, *file_path;
-    zend_bool use_pattern;
-    char *log, *log_file;
+    zend_bool log_exception;
+    char *log;
     size_t log_len;
 
     if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "lS|z", &level, &message, &z_exception)) {
@@ -81,32 +97,51 @@ PHP_METHOD(leaver_appender_file, onAppend)
     }
 
     z_format = zend_read_property(Z_OBJCE_P(this), this, ZEND_STRL("format"), 1, NULL);
+    z_log_exception = zend_read_property(Z_OBJCE_P(this), this, ZEND_STRL("logException"), 1, NULL);
     z_file_path = zend_read_property(Z_OBJCE_P(this), this, ZEND_STRL("filePath"), 1, NULL);
-    z_use_pattern = zend_read_property(Z_OBJCE_P(this), this, ZEND_STRL("usePattern"), 1, NULL);
 
     format = zval_get_string(z_format);
+    log_exception = Z_TYPE_P(z_log_exception) == IS_TRUE ? (char) 1 : (char) 0;
     file_path = zval_get_string(z_file_path);
-    use_pattern = Z_TYPE_P(z_use_pattern) == IS_TRUE ? (char) 1 : (char) 0;
 
-    if (use_pattern) {
-        log_file = leaver_appender_file_format_path(file_path->val, file_path->len);
-    } else {
-        log_file = estrdup(file_path->val);
+    log_len = leaver_appender_format_log(&log, format, level, message);
+
+    if (log_exception && z_exception) {
+        // Add exception log if exist.
+        zval *z_exception_format;
+        zend_string *exception_format;
+        char *exception_log, *log_tmp;
+        size_t exception_log_len;
+
+        z_exception_format = zend_read_property(Z_OBJCE_P(this), this, ZEND_STRL("exceptionFormat"), 1, NULL);
+        exception_format = zval_get_string(z_exception_format);
+
+        exception_log_len = leaver_appender_format_exception_log(&exception_log, exception_format, z_exception);
+
+        log_tmp = emalloc(log_len + exception_log_len + 2);
+
+        strncpy(log_tmp, log, log_len);
+        log_tmp[log_len] = '\n';
+        strncpy(log_tmp + log_len + 1, exception_log, exception_log_len);
+        log_tmp[log_len + exception_log_len + 1] = '\0';
+
+        zend_string_release(exception_format);
+        efree(exception_log);
+        efree(log);
+
+        log_len = log_len + exception_log_len + 1;
+        log = log_tmp;
     }
 
-    log_len = leaver_appender_common_format_log(&log, format, level, message);
-
-    leaver_appender_file_write_log(log_file, log, log_len);
+    leaver_appender_file_write_log(file_path->val, log, log_len);
 
     zend_string_release(format);
     zend_string_release(file_path);
     efree(log);
-    efree(log_file);
 }
 
 zend_function_entry leaver_appender_file_methods[] = {
     PHP_ME(leaver_appender_file, setFilePath, leaver_appender_file_setFilePath_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(leaver_appender_file, setUsePattern, leaver_appender_file_setUsePattern_arginfo, ZEND_ACC_PUBLIC)
     PHP_ME(leaver_appender_file, onAppend, leaver_appender_file_onAppend_arginfo, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -119,116 +154,6 @@ LEAVER_CREATE_FUNCTION(appender_file)
     leaver_appender_file_ce = zend_register_internal_class_ex(&ce, leaver_appender_ce);
 
     zend_declare_property_null(leaver_appender_file_ce, ZEND_STRL("filePath"), ZEND_ACC_PROTECTED);
-    zend_declare_property_bool(leaver_appender_file_ce, ZEND_STRL("usePattern"), 1, ZEND_ACC_PROTECTED);
 
     return SUCCESS;
-}
-
-void leaver_appender_file_write_log(char *log_file, char *log, size_t log_len)
-{
-    php_stream_context *context;
-    php_stream *stream;
-
-    context = php_stream_context_from_zval(NULL, 0);
-
-    if (access(log_file, F_OK)) {
-        leaver_appender_file_make_log_dir(log_file, context);
-    }
-
-    stream = php_stream_open_wrapper(log_file, "a", IGNORE_URL, context);
-    if (!stream) {
-        return;
-    }
-
-    php_stream_write(stream, log, log_len);
-    php_stream_write(stream, "\n", 1);
-    php_stream_free(stream, PHP_STREAM_FREE_CLOSE | PHP_STREAM_FREE_RELEASE_STREAM);
-}
-
-// Usable tokens:
-//  %% for '%'; %Y year; %YYY year; %M month; %D day; %H hour; %I minute;
-char *leaver_appender_file_format_path(char *log_file, size_t log_file_len)
-{
-    char *p, *buf, *b;
-    size_t buf_len, add_len;
-    char token;
-
-    time_t timestamp;
-    struct tm * timeinfo;
-
-    timestamp = time(NULL);
-    timeinfo = localtime(&timestamp);
-
-    p = log_file;
-    buf = emalloc(log_file_len + 1);
-    b = buf;
-    buf_len = 0;
-
-    while ('\0' != *p) {
-        if (!token && '%' == *p) {
-            token = 1;
-            p++;
-            continue;
-        }
-
-        if (token) {
-            token = 0;
-
-            switch (*p) {
-                case '%':
-                    *b = '%';
-                    add_len = 1;
-                    break;
-
-                case 'Y':
-                    add_len = snprintf(b, 3, "%2d", (timeinfo->tm_year + 1900) % 100);
-                    break;
-
-                case 'M':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon + 1);
-                    break;
-
-                case 'D':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mday);
-                    break;
-
-                case 'H':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_hour);
-                    break;
-
-                case 'I':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_min);
-                    break;
-
-                default:
-                    break;
-            }
-
-                buf_len += add_len;
-            b += add_len;
-            p++;
-            continue;
-        }
-
-        *b = *p;
-        buf_len++;
-        b++;
-        p++;
-    }
-
-    buf[buf_len] = '\0';
-
-    return buf;
-}
-
-void leaver_appender_file_make_log_dir(char *log_file, php_stream_context *context)
-{
-    char *log_dir;
-
-    log_dir = estrdup(log_file);
-    zend_dirname(log_dir, strlen(log_dir));
-
-    php_stream_mkdir(log_dir, 0777, PHP_STREAM_MKDIR_RECURSIVE, context);
-
-    efree(log_dir);
 }

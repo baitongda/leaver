@@ -5,7 +5,7 @@ namespace Leaver\Appender;
 use Leaver\Appender;
 use Throwable;
 
-class FileAppender extends Appender
+class DailyFileAppender extends Appender
 {
     /**
      * The path of log path.

@@ -19,7 +19,8 @@ if test "$PHP_LEAVER" != "no"; then
         leaver/logger.c                     \
         leaver/appender.c                   \
         leaver/appender/null.c              \
-        leaver/appender/file.c,
+        leaver/appender/file.c              \
+        leaver/appender/daily_file.c,
         $ext_shared)
 
 fi

@@ -1,5 +1,10 @@
 Leaver                                                                     NEWS
 -------------------------------------------------------------------------------
+?? ??? 2016, Leaver 0.1.2
+
+- Other:
+  . Added travis build test.
+
 07 May 2016, Leaver 0.1.1
 
 - Appender:

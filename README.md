@@ -1,4 +1,5 @@
 # Leaver - A fast logger for PHP
+[![Build Status](https://secure.travis-ci.org/funcuter/leaver.png)](https://travis-ci.org/funcuter/leaver)
 
 ### Requirement
 - PHP 7+

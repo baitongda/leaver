@@ -2,6 +2,10 @@ Leaver                                                                     NEWS
 -------------------------------------------------------------------------------
 ?? ??? 2016, Leaver 0.1.2
 
+- Appender:
+  . Fixed file appender will write two \n will no exception given.
+  . Fixed no exception output in appender.
+
 - Other:
   . Added travis build test.
 

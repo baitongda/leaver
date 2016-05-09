@@ -106,7 +106,7 @@ PHP_METHOD(leaver_appender_file, onAppend)
 
     log_len = leaver_appender_format_log(&log, format, level, message);
 
-    if (log_exception && z_exception) {
+    if (log_exception && z_exception && Z_TYPE_P(z_exception) == IS_OBJECT) {
         // Add exception log if exist.
         zval *z_exception_format;
         zend_string *exception_format;

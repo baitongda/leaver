@@ -207,7 +207,7 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
     char *p, *buf, *b;
     size_t buf_len, add_len, alloc_len;
 
-    if (!z_exception || Z_TYPE_P(z_exception) != IS_OBJECT || instanceof_function(Z_OBJCE_P(z_exception), zend_ce_throwable)) {
+    if (!z_exception || Z_TYPE_P(z_exception) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(z_exception), zend_ce_throwable)) {
         *output = emalloc(1);
         **output = '\0';
         return 0;

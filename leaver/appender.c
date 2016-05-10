@@ -12,15 +12,10 @@
 
 #include <php.h>
 #include <zend_exceptions.h>
+#include <zend_smart_str.h>
 
 #include "../php_leaver.h"
 #include "appender.h"
-
-#define LEAVER_APPENDER_FORMAT_BUFFER_INCREASE      256
-#define LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, now_len, need_len)           \
-    if (UNEXPECTED(now_len + need_len > alloc_len)) {                               \
-        leaver_appender_ensure_length(&buf, &b, now_len, &alloc_len, need_len);     \
-    }
 
 char *leaver_appender_get_level_string(zend_long level)
 {
@@ -43,48 +38,33 @@ char *leaver_appender_get_level_string(zend_long level)
     }
 }
 
-void leaver_appender_ensure_length(char **buffer, char **b, size_t now_len, size_t *alloc_len, size_t need)
+char *leaver_appender_get_datetime_string(struct timeval timev)
 {
-    size_t now_alloc_len = *alloc_len;
+    char *buf;
+    struct tm * timeinfo;
 
-    now_alloc_len += (need / LEAVER_APPENDER_FORMAT_BUFFER_INCREASE + 1) * LEAVER_APPENDER_FORMAT_BUFFER_INCREASE;
+    buf = emalloc(17);
+    timeinfo = localtime(&timev.tv_sec);
 
-    size_t offset = b - buffer;
+    strftime(buf, 17, "%Y%m%d%H%M%S%p", timeinfo);
 
-    char *new = emalloc(now_alloc_len);
-    strncpy(new, *buffer, now_len);
-
-    // Free stale.
-    efree(*buffer);
-
-    *buffer = new;
-    *b = *buffer + offset;
-    *alloc_len = now_alloc_len;
+    return buf;
 }
 
 // Usable tokens:
 //  %% for '%'; %n new line; %Y year; %M month; %D day; %H hour; %I minute; %S second; %s millisecond;
-//  %u microsecond; %t timestamp; %r millisecond from request start; %p process id; %l log level;
+//  %A AM or PM; %u microsecond; %t timestamp; %r millisecond from request start; %p process id; %l log level;
 //  %m log message;
 size_t leaver_appender_format_log(char **output, zend_string *format, zend_long level, zend_string *message)
 {
     char token;
-    char *p, *buf, *b;
-    size_t buf_len, add_len, alloc_len;
-    // Time
-    time_t timestamp;
-    struct tm * timeinfo;
+    char *p, *datetime = NULL;
+    size_t output_len;
+    smart_str buf = {0};
     struct timeval timev;
 
-    timestamp = time(NULL);
-    timeinfo = localtime(&timestamp);
     gettimeofday(&timev, NULL);
 
-    alloc_len = LEAVER_APPENDER_FORMAT_BUFFER_INCREASE;
-    buf = emalloc(alloc_len);
-    buf_len = 0;
-
-    b = buf;
     token = 0;
     p = format->val;
     while ('\0' != *p) {
@@ -99,125 +79,137 @@ size_t leaver_appender_format_log(char **output, zend_string *format, zend_long 
 
             switch(*p) {
                 case '%':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
-                    *b = '%';
-                    add_len = 1;
+                    smart_str_appendc(&buf, '%');
                     break;
 
                 case 'n':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
-                    *b = '\n';
-                    add_len = 1;
+                    smart_str_appendc(&buf, '\n');
                     break;
 
                 case 'Y':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 5);
-                    add_len = snprintf(b, 5, "%4d", timeinfo->tm_year + 1900);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime, 4);
                     break;
 
                 case 'M':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon + 1);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 4, 2);
                     break;
 
                 case 'D':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mday);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 6, 2);
                     break;
 
                 case 'H':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_hour);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 8, 2);
                     break;
 
                 case 'I':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_min);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 10, 2);
                     break;
 
                 case 'S':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 3);
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_sec);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 12, 2);
                     break;
 
-                case 's':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 4);
-                    add_len = snprintf(b, 4, "%03d", timev.tv_usec / 1000);
+                case 's': {
+                    int msec = timev.tv_usec / 1000;
+                    if (msec < 10) {
+                        smart_str_appendl(&buf, "00", 2);
+                    } else if (msec < 100) {
+                        smart_str_appendl(&buf, "0", 1);
+                    }
+                    smart_str_append_long(&buf, timev.tv_usec);
+                    break;
+                }
+
+                case 'A':
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 14, 2);
                     break;
 
                 case 'u':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 7);
-                    add_len = snprintf(b, 7, "%06d", timev.tv_usec);
+                    smart_str_append_long(&buf, timev.tv_usec);
                     break;
 
                 case 't':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 11);
-                    add_len = snprintf(b, 11, "%d", timev.tv_sec);
+                    smart_str_append_long(&buf, timev.tv_sec);
                     break;
 
-                case 'r':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 11);
+                case 'r': {
                     int time = (int) ((timev.tv_sec - LEAVER_G(request_time).tv_sec) * 1000
-                                + (timev.tv_usec - LEAVER_G(request_time).tv_usec) / 1000);
-                    add_len = snprintf(b, 11, "%d", time);
+                                      + (timev.tv_usec - LEAVER_G(request_time).tv_usec) / 1000);
+                    smart_str_append_long(&buf, time);
                     break;
+                }
 
                 case 'p':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 11);
-                    add_len = snprintf(b, 11, "%d", getpid());
+                    smart_str_append_long(&buf, getpid());
                     break;
 
-                case 'l':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 10); // Length of EMERGENCY.
-                    add_len = snprintf(b, 10, "%s", leaver_appender_get_level_string(level));
+                case 'l': {
+                    char *clevel = leaver_appender_get_level_string(level);
+                    smart_str_appendl(&buf, clevel, strlen(clevel));
                     break;
+                }
 
                 case 'm':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, message->len + 1);
-                    add_len = snprintf(b, message->len + 1, "%s", message->val);
+                    smart_str_append(&buf, message);
                     break;
 
                 default:
-                    add_len = 1;
+                    break;
             }
-
-            buf_len += add_len;
-            b += add_len;
-            p++;
-            continue;
+        } else {
+            smart_str_appendc(&buf, *p);
         }
 
-        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 1);
-
-        *b = *p;
-        buf_len++;
-        b++;
         p++;
     }
 
-    buf[buf_len] = '\0';
+    smart_str_0(&buf);
 
-    *output = buf;
-    return buf_len;
+    *output = estrndup(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s));
+    output_len = ZSTR_LEN(buf.s);
+
+    smart_str_free(&buf);
+    if (datetime) {
+        efree(datetime);
+    }
+
+    return output_len;
 }
 
 size_t leaver_appender_format_exception_log(char **output, zend_string *format, zval *z_exception)
 {
     char token;
-    char *p, *buf, *b;
-    size_t buf_len, add_len, alloc_len;
+    char *p;
+    size_t output_len;
+    smart_str buf = {0};
 
-    if (!z_exception || Z_TYPE_P(z_exception) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(z_exception), zend_ce_throwable)) {
-        *output = emalloc(1);
-        **output = '\0';
+    if (format->len == 0 || !z_exception || Z_TYPE_P(z_exception) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(z_exception), zend_ce_throwable)) {
+        *output = "";
         return 0;
     }
 
-    alloc_len = LEAVER_APPENDER_FORMAT_BUFFER_INCREASE;
-    buf = emalloc(alloc_len);
-    buf_len = 0;
-
-    b = buf;
     token = 0;
     p = format->val;
     while ('\0' != *p) {
@@ -232,21 +224,16 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
 
             switch(*p) {
                 case '%':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
-                    *b = '%';
-                    add_len = 1;
+                    smart_str_appendc(&buf, '%');
                     break;
 
                 case 'n':
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 2);
-                    *b = '\n';
-                    add_len = 1;
+                    smart_str_appendc(&buf, '\n');
                     break;
 
                 case 'e': {
                     zend_class_entry *exception_ce = Z_OBJCE_P(z_exception);
-                    LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, exception_ce->name->len + 1);
-                    add_len = snprintf(b, exception_ce->name->len + 1, "%s", exception_ce->name->val);
+                    smart_str_append(&buf, exception_ce->name);
                     break;
                 }
 
@@ -254,8 +241,7 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
                     zval z_code;
                     leaver_call_method_without_params(z_exception, "getcode", &z_code, NULL);
                     if (Z_TYPE(z_code) == IS_LONG) {
-                        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 21);
-                        add_len = snprintf(b, 21, "%d", Z_LVAL(z_code));
+                        smart_str_append_long(&buf, Z_LVAL(z_code));
                     }
                     break;
                 }
@@ -264,8 +250,7 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
                     zval z_message;
                     leaver_call_method_without_params(z_exception, "getmessage", &z_message, NULL);
                     if (Z_TYPE(z_message) == IS_STRING) {
-                        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, Z_STRLEN(z_message) + 1);
-                        add_len = snprintf(b, Z_STRLEN(z_message) + 1, "%s", Z_STRVAL(z_message));
+                        smart_str_append(&buf, Z_STR(z_message));
                     }
                     if (!Z_ISUNDEF(z_message)) {
                         ZVAL_PTR_DTOR(&z_message);
@@ -277,8 +262,7 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
                     zval z_file;
                     leaver_call_method_without_params(z_exception, "getfile", &z_file, NULL);
                     if (Z_TYPE(z_file) == IS_STRING) {
-                        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, Z_STRLEN(z_file) + 1);
-                        add_len = snprintf(b, Z_STRLEN(z_file) + 1, "%s", Z_STRVAL(z_file));
+                        smart_str_append(&buf, Z_STR(z_file));
                     }
                     if (!Z_ISUNDEF(z_file)) {
                         ZVAL_PTR_DTOR(&z_file);
@@ -290,8 +274,7 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
                     zval z_line;
                     leaver_call_method_without_params(z_exception, "getline", &z_line, NULL);
                     if (Z_TYPE(z_line) == IS_LONG) {
-                        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 21);
-                        add_len = snprintf(b, 21, "%d", Z_LVAL(z_line));
+                        smart_str_append_long(&buf, Z_LVAL(z_line));
                     }
                     break;
                 }
@@ -300,8 +283,7 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
                     zval z_trace;
                     leaver_call_method_without_params(z_exception, "gettraceasstring", &z_trace, NULL);
                     if (Z_TYPE(z_trace) == IS_STRING) {
-                        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, Z_STRLEN(z_trace) + 1);
-                        add_len = snprintf(b, Z_STRLEN(z_trace) + 1, "%s", Z_STRVAL(z_trace));
+                        smart_str_append(&buf, Z_STR(z_trace));
                     }
                     if (!Z_ISUNDEF(z_trace)) {
                         ZVAL_PTR_DTOR(&z_trace);
@@ -310,27 +292,23 @@ size_t leaver_appender_format_exception_log(char **output, zend_string *format, 
                 }
 
                 default:
-                    add_len = 1;
+                    break;
             }
-
-            buf_len += add_len;
-            b += add_len;
-            p++;
-            continue;
+        } else {
+            smart_str_appendc(&buf, *p);
         }
 
-        LEAVER_APPENDER_ENSURE_SIZE(buf, b, alloc_len, buf_len, 1);
-
-        *b = *p;
-        buf_len++;
-        b++;
         p++;
     }
 
-    buf[buf_len] = '\0';
+    smart_str_0(&buf);
 
-    *output = buf;
-    return buf_len;
+    *output = estrndup(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s));
+    output_len = ZSTR_LEN(buf.s);
+
+    smart_str_free(&buf);
+
+    return output_len;
 }
 
 zend_class_entry *leaver_appender_ce;

@@ -118,19 +118,22 @@ PHP_METHOD(leaver_appender_file, onAppend)
 
         exception_log_len = leaver_appender_format_exception_log(&exception_log, exception_format, z_exception);
 
-        log_tmp = emalloc(log_len + exception_log_len + 2);
+        if (exception_log_len) {
+            log_tmp = emalloc(log_len + exception_log_len + 2);
 
-        strncpy(log_tmp, log, log_len);
-        log_tmp[log_len] = '\n';
-        strncpy(log_tmp + log_len + 1, exception_log, exception_log_len);
-        log_tmp[log_len + exception_log_len + 1] = '\0';
+            strncpy(log_tmp, log, log_len);
+            log_tmp[log_len] = '\n';
+            strncpy(log_tmp + log_len + 1, exception_log, exception_log_len);
+            log_tmp[log_len + exception_log_len + 1] = '\0';
+
+            efree(exception_log);
+            efree(log);
+
+            log_len = log_len + exception_log_len + 1;
+            log = log_tmp;
+        }
 
         zend_string_release(exception_format);
-        efree(exception_log);
-        efree(log);
-
-        log_len = log_len + exception_log_len + 1;
-        log = log_tmp;
     }
 
     leaver_appender_file_write_log(file_path->val, log, log_len);

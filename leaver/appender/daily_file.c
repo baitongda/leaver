@@ -11,6 +11,7 @@
 #endif
 
 #include <php.h>
+#include <zend_smart_str.h>
 
 #include "../../php_leaver.h"
 #include "../appender.h"
@@ -18,24 +19,18 @@
 #include "daily_file.h"
 
 // Usable tokens:
-//  %% for '%'; %Y year; %YYY year; %M month; %D day; %H hour; %I minute; %A am or pm.
-char *leaver_appender_daliyfile_format_path(char *log_file, size_t log_file_len)
+//  %% for '%'; %Y year; %M month; %D day; %H hour; %I minute; %A am or pm.
+char *leaver_appender_daliyfile_format_path(char *log_file)
 {
-    char *p, *buf, *b;
-    size_t buf_len, add_len;
     char token;
+    char *p, *output, *datetime = NULL;
+    smart_str buf = {0};
+    struct timeval timev;
 
-    time_t timestamp;
-    struct tm * timeinfo;
+    gettimeofday(&timev, NULL);
 
-    timestamp = time(NULL);
-    timeinfo = localtime(&timestamp);
-
+    token = 0;
     p = log_file;
-    buf = emalloc(log_file_len + 1);
-    b = buf;
-    buf_len = 0;
-
     while ('\0' != *p) {
         if (!token && '%' == *p) {
             token = 1;
@@ -48,58 +43,71 @@ char *leaver_appender_daliyfile_format_path(char *log_file, size_t log_file_len)
 
             switch (*p) {
                 case '%':
-                    *b = '%';
-                    add_len = 1;
+                    smart_str_appendc(&buf, '%');
                     break;
 
                 case 'Y':
-                    if (p - log_file + 2 < log_file_len && 'Y' == *(p + 1) && 'Y' == *(p + 2)) {
-                        p += 2;
-                        add_len = snprintf(b, 5, "%d", timeinfo->tm_year + 1900);
-                    } else {
-                        add_len = snprintf(b, 3, "%d", (timeinfo->tm_year + 1900) % 100);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
                     }
+                    smart_str_appendl(&buf, datetime, 4);
                     break;
 
                 case 'M':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mon + 1);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 4, 2);
                     break;
 
                 case 'D':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_mday);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 6, 2);
                     break;
 
                 case 'H':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_hour);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 8, 2);
                     break;
 
                 case 'I':
-                    add_len = snprintf(b, 3, "%02d", timeinfo->tm_min);
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 10, 2);
                     break;
 
                 case 'A':
-                    add_len = snprintf(b, 3, "%s", timeinfo->tm_hour < 12 ? "am" : "pm");
+                    if (!datetime) {
+                        datetime = leaver_appender_get_datetime_string(timev);
+                    }
+                    smart_str_appendl(&buf, datetime + 14, 2);
                     break;
 
                 default:
                     break;
             }
-
-            buf_len += add_len;
-            b += add_len;
-            p++;
-            continue;
+        } else {
+            smart_str_appendc(&buf, *p);
         }
 
-        *b = *p;
-        buf_len++;
-        b++;
         p++;
     }
 
-    buf[buf_len] = '\0';
+    smart_str_0(&buf);
 
-    return buf;
+    output = estrndup(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s));
+
+    smart_str_free(&buf);
+    if (datetime) {
+        efree(datetime);
+    }
+
+    return output;
 }
 
 zend_class_entry *leaver_appender_dailyfile_ce;
@@ -166,22 +174,25 @@ PHP_METHOD(leaver_appender_dailyfile, onAppend)
 
         exception_log_len = leaver_appender_format_exception_log(&exception_log, exception_format, z_exception);
 
-        log_tmp = emalloc(log_len + exception_log_len + 2);
+        if (exception_log_len) {
+            log_tmp = emalloc(log_len + exception_log_len + 2);
 
-        strncpy(log_tmp, log, log_len);
-        log_tmp[log_len] = '\n';
-        strncpy(log_tmp + log_len + 1, exception_log, exception_log_len);
-        log_tmp[log_len + exception_log_len + 1] = '\0';
+            strncpy(log_tmp, log, log_len);
+            log_tmp[log_len] = '\n';
+            strncpy(log_tmp + log_len + 1, exception_log, exception_log_len);
+            log_tmp[log_len + exception_log_len + 1] = '\0';
+
+            efree(exception_log);
+            efree(log);
+
+            log_len = log_len + exception_log_len + 1;
+            log = log_tmp;
+        }
 
         zend_string_release(exception_format);
-        efree(exception_log);
-        efree(log);
-
-        log_len = log_len + exception_log_len + 1;
-        log = log_tmp;
     }
 
-    log_file = leaver_appender_daliyfile_format_path(file_path->val, file_path->len);
+    log_file = leaver_appender_daliyfile_format_path(ZSTR_VAL(file_path));
 
     leaver_appender_file_write_log(log_file, log, log_len);
 
